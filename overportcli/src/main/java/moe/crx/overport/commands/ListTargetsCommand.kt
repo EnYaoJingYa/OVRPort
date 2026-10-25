@@ -23,6 +23,7 @@ object ListTargetsCommand : CliCommand() {
             if (target.compatibilityPatches.isNotEmpty()) {
                 println("  Additional patches: ${target.compatibilityPatches.joinToString()}")
             }
+            target.notes.forEach { println("  Note: $it") }
         }
         return true
     }

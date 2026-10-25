@@ -47,7 +47,7 @@ class TargetCompatibilityTest {
         val report = TargetCompatibility.analyze(directory, TargetProfiles.resolve("vrx"))
 
         assertTrue(report.issues.any {
-            it.severity == CompatibilitySeverity.WARNING && it.message.contains("strong DRM/account")
+            it.severity == CompatibilitySeverity.UNSUPPORTED && it.message.contains("strong DRM/account")
         })
         assertTrue(report.issues.any {
             it.severity == CompatibilitySeverity.INFO && it.message.contains("not bypassed")

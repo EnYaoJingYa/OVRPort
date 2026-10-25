@@ -5,6 +5,7 @@ import java.io.File
 enum class CompatibilitySeverity {
     INFO,
     WARNING,
+    UNSUPPORTED,
     BLOCKER,
 }
 
@@ -31,6 +32,7 @@ data class TargetCompatibilityReport(
             val label = when (issue.severity) {
                 CompatibilitySeverity.INFO -> "INFO"
                 CompatibilitySeverity.WARNING -> "WARN"
+                CompatibilitySeverity.UNSUPPORTED -> "UNSUPPORTED"
                 CompatibilitySeverity.BLOCKER -> "UNSUPPORTED"
             }
             output("[$label] ${issue.message}")
@@ -108,9 +110,10 @@ object TargetCompatibility {
         val matchingServiceMarkers = findServiceMarkers(workspace)
         if (matchingServiceMarkers.isNotEmpty()) {
             issues += CompatibilityIssue(
-                CompatibilitySeverity.WARNING,
+                CompatibilitySeverity.UNSUPPORTED,
                 "Potential strong DRM/account checks detected (${matchingServiceMarkers.joinToString()}). " +
-                    "The app may refuse to run without a live Meta account, entitlement or service.",
+                    "This application is not a supported conversion target without a live Meta account, " +
+                    "entitlement or service; OVRPort cannot bypass those checks.",
             )
         }
 
