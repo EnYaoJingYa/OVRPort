@@ -78,6 +78,51 @@ non-projection VrApi layers. Projection matrices use the conventional GL-depth
 form expected to be converted by the target's CryEngine Vulkan renderer;
 this is not a general Vulkan-depth or cross-engine projection implementation.
 
+## ThinkReality VRX target
+
+The `thinkreality-vrx` target models Lenovo ThinkReality VRX as an independent
+Snapdragon Spaces/OpenXR device. It keeps the APK ARM64-only and combines the
+VRX manifest profile with the VrApi compatibility adapter and the open-source
+`openxr-dispatcher-open` library. The dispatcher loads
+`libopenxr_loader_generic.so`, which connects to the system
+`com.qualcomm.qti.spaces.services` runtime. The VRX runtime supplies the
+`/interaction_profiles/oculus/touch_controller` profile used by the two 6DoF
+controllers.
+
+Build a CLI that contains both native compatibility resources:
+
+```bash
+./gradlew :overportcli:shadowJar -PwithVrApi=true
+java -jar overportcli/build/libs/*-all.jar targets
+java -jar overportcli/build/libs/*-all.jar patch \
+  --input=/path/to/application.apk \
+  --target=thinkreality-vrx
+```
+
+`patch --target=thinkreality-vrx` performs a preflight before modifying the APK.
+It rejects missing ARM64 support and unsupported VrApi ABIs, and reports
+potential strong DRM, account, Meta-service and out-of-scope tracking features.
+The report does not claim that authentication or entitlement checks were
+bypassed. Passthrough, hand tracking, spatial anchors and mixed reality are not
+part of this target's first compatibility tier.
+
+The packaged open dispatcher is built from
+`Molier/openxr-dispatcher-open` under its MIT license. Source and rebuild
+instructions are in [`native/dispatcher/README.md`](native/dispatcher/README.md).
+
+On VRX, Snapdragon Spaces exposes its runtime through
+`content://com.qualcomm.qti.openxrruntime_broker/runtime` rather than the
+standard Khronos broker authorities. The bundled dispatcher follows that
+vendor provider, negotiates with `libopenxr_monado.so`, removes empty
+composition layers, and replaces the unsupported ASTC sRGB swapchain render
+format with `GL_SRGB8_ALPHA8`. Pico Neo3 bindings are aliased to VRX's Oculus
+Touch profile, including Back/Home/System-to-Menu and A/B-to-X/Y translation.
+
+An on-device smoke test with a legally supplied Virtual Desktop Quest APK
+created the OpenXR instance and GLES session and displayed the stable stereo UI
+at 90 fps. Application account, licensing and server discovery behavior remain
+application-specific and are not bypassed by this target.
+
 Display-refresh queries use the runtime's reported display rate rather than
 assuming a Quest-specific rate. With AXRB's optional
 `XR_AXRB_system_display_refresh_rate` extension, the value is available before

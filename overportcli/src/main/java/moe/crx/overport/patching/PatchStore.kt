@@ -43,6 +43,12 @@ object PatchStore {
         ) {
             "${PATCH_AC_NEXUS_NO_APPSW_72.name} conflicts with ${PATCH_AC_NEXUS_NO_APPSW_90.name}; select only one."
         }
+        require(
+            PATCH_VR_METADATA.name !in selectedNames ||
+                PATCH_VRX_METADATA.name !in selectedNames
+        ) {
+            "${PATCH_VR_METADATA.name} conflicts with ${PATCH_VRX_METADATA.name}; select only one."
+        }
         return requestedNames.map(PATCHES::getValue)
     }
 
@@ -65,6 +71,8 @@ object PatchStore {
         register(PATCH_MARK_ALLOW_BACKUP)
         register(PATCH_REMOVE_VRAPI)
         register(PATCH_VRAPI_OPENXR)
+        register(PATCH_VRX_OPENXR)
+        register(PATCH_VRX_METADATA)
         register(PATCH_REMOVE_UNREAL_FORCE_QUIT)
         register(PATCH_FORCE_PASSTHROUGH)
         register(PATCH_DISABLE_SPACE_WARP)

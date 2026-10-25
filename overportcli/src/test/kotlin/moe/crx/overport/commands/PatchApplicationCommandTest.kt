@@ -1,6 +1,7 @@
 package moe.crx.overport.commands
 
 import moe.crx.overport.patching.PatchStore
+import moe.crx.overport.targets.TargetProfiles
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import kotlin.test.Test
@@ -81,6 +82,24 @@ class PatchApplicationCommandTest {
         }
 
         assertTrue(output.toString().contains("--extra-patches=<value>"))
+        assertTrue(output.toString().contains("--target=<value>"))
+    }
+
+    @Test
+    fun `VRX target replaces generic metadata and appends required compatibility patches`() {
+        val selected = PatchApplicationCommand.mergePatchSelections(
+            patches = null,
+            extraPatches = emptyMap(),
+            target = TargetProfiles.resolve("vrx"),
+        )
+
+        val expectedBase = PatchStore.recommended()
+            .filterNot { it.name == "patch_vr_metadata" }
+            .map { it.name }
+        assertEquals(
+            expectedBase + listOf("patch_vrx_metadata", "patch_vrapi_openxr", "patch_vrx_openxr"),
+            selected.keys.toList(),
+        )
     }
 
     @Test

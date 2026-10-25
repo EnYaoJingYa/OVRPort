@@ -108,6 +108,7 @@ class PatcherContext(
 
     fun patch(
         args: Map<String, List<String>>,
+        target: String? = null,
         callback: (Int, Patch) -> Unit = { _, _ -> }
     ) {
         val patches = PatchStore.select(args.keys)
@@ -127,7 +128,8 @@ class PatcherContext(
             patched = OverportPatchedInfo(
                 by = VersionManager.VERSION,
                 with = overportVersion,
-                patches = patches.map { it.name }
+                patches = patches.map { it.name },
+                target = target,
             )
         }
     }

@@ -49,6 +49,8 @@ data class OverportPatchedInfo(
     var with: String,
     @SerialName("patches")
     var patches: List<String>,
+    @SerialName("target")
+    var target: String? = null,
 )
 
 @Serializable

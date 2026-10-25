@@ -5,6 +5,9 @@ import moe.crx.overport.cli.CliCommand
 import moe.crx.overport.patches.PLATFORM_ICON_RESIZER
 import moe.crx.overport.patching.PatchStore
 import moe.crx.overport.patching.PatcherContext
+import moe.crx.overport.targets.TargetCompatibility
+import moe.crx.overport.targets.TargetProfile
+import moe.crx.overport.targets.TargetProfiles
 import moe.crx.overport.utils.DesktopUtil.defaultWorkspace
 import moe.crx.overport.utils.ImageIOIconResizer
 import moe.crx.overport.utils.NameFormatter.DEFAULT_FORMAT
@@ -23,7 +26,7 @@ object PatchApplicationCommand : CliCommand() {
     override fun printHelp(): Boolean {
         println("usage: overport patch --input=<path> [--output=<path>]")
         println("    [--output-name=<format>] [--workspace=<path>] [--patches=<value>]")
-        println("    [--extra-patches=<value>] [--version=<value>]")
+        println("    [--extra-patches=<value>] [--target=<value>] [--version=<value>]")
         println()
         println("--input=<path>")
         println("Specifies input APK file to patch.")
@@ -52,6 +55,11 @@ object PatchApplicationCommand : CliCommand() {
         println("Uses the same semicolon-separated patch and comma-separated argument syntax as --patches.")
         println("A patch cannot be named in both --patches and --extra-patches.")
         println()
+        println("--target=<value>")
+        println("Selects a target profile. Use \"overport targets\" to list profiles.")
+        println("The ThinkReality VRX profile adds its OpenXR metadata, VrApi compatibility adapter")
+        println("and open-source OpenXR dispatcher. Supported values: thinkreality-vrx, generic.")
+        println()
         println("--version=<value>")
         println("Specifies which overport version to use for patching.")
         println("Value also could be \"experimental\" or \"latest\".")
@@ -79,6 +87,7 @@ object PatchApplicationCommand : CliCommand() {
         var patches: Map<String, List<String>>? = null,
         var extraPatches: Map<String, List<String>> = emptyMap(),
         var nameFormat: String? = null,
+        var target: String? = null,
         var overportVersion: String? = null,
     )
 
@@ -103,13 +112,19 @@ object PatchApplicationCommand : CliCommand() {
     internal fun mergePatchSelections(
         patches: Map<String, List<String>>?,
         extraPatches: Map<String, List<String>>,
+        target: TargetProfile = TargetProfiles.default(),
     ): Map<String, List<String>> {
-        val base = patches ?: PatchStore.recommended().associateTo(linkedMapOf()) { it.name to emptyList() }
+        val base = patches?.toMap() ?: PatchStore.recommended()
+            .filterNot { it.name in target.excludedRecommendedPatches }
+            .associateTo(linkedMapOf()) { it.name to emptyList() }
         val duplicate = base.keys.firstOrNull(extraPatches::containsKey)
         require(duplicate == null) { "Patch specified in both --patches and --extra-patches: $duplicate" }
         return linkedMapOf<String, List<String>>().apply {
             putAll(base)
             putAll(extraPatches)
+            target.compatibilityPatches.forEach { patch ->
+                putIfAbsent(patch, emptyList())
+            }
             PatchStore.select(keys)
         }
     }
@@ -130,6 +145,7 @@ object PatchApplicationCommand : CliCommand() {
                 "--patches" -> parsed.patches = parsePatchList(value)
                 "--extra-patches" -> parsed.extraPatches = parsePatchList(value)
                 "--output-name" -> parsed.nameFormat = value
+                "--target" -> parsed.target = value
                 "--version" -> parsed.overportVersion = value
                 else -> throw IllegalArgumentException("Unknown argument: $key")
             }
@@ -138,9 +154,19 @@ object PatchApplicationCommand : CliCommand() {
         return parsed
     }
 
+    internal fun patchesForCompatibility(
+        patches: Map<String, List<String>>,
+        compatibility: moe.crx.overport.targets.TargetCompatibilityReport,
+    ): Map<String, List<String>> {
+        val conditional = compatibility.target.vrApiCompatibilityPatch ?: return patches
+        if (compatibility.needsVrApiAdapter) return patches
+        return patches.filterKeys { it != conditional }
+    }
+
     override suspend fun execute(args: List<String>): Boolean {
         val parsed = scanArguments(args)
-        val patches = mergePatchSelections(parsed.patches, parsed.extraPatches)
+        val target = TargetProfiles.resolve(parsed.target)
+        val patches = mergePatchSelections(parsed.patches, parsed.extraPatches, target)
 
         val inputFile = parsed.inputFile?.let { File(it) } ?: return false
 
@@ -163,6 +189,7 @@ object PatchApplicationCommand : CliCommand() {
         println("Input APK: ${inputFile.absolutePath}")
         println("Output directory: ${outputDir.absolutePath}")
         println("Workspace directory: ${workspace.absolutePath}")
+        println("Target: ${target.displayName} (${target.id})")
 
         PLATFORM_ICON_RESIZER = ImageIOIconResizer
         val patcher = PatcherContext(version, workspace, inputFile.name, nameFormat)
@@ -187,7 +214,14 @@ object PatchApplicationCommand : CliCommand() {
 
         println("Decompiled app: ${patcher.appName()}, package ${patcher.appPackage()}, version ${patcher.appVersionName()}")
 
-        val totalPatches = patches.size
+        val compatibility = TargetCompatibility.analyze(patcher.workingDir, target)
+        compatibility.printTo()
+        require(!compatibility.hasBlockers) {
+            "Target preflight failed for ${target.displayName}. No APK was modified."
+        }
+        val effectivePatches = patchesForCompatibility(patches, compatibility)
+
+        val totalPatches = effectivePatches.size
         var appliedPatches = 0
         var currentPatch = ""
         val waitingForPatching = updateLine {
@@ -196,7 +230,7 @@ object PatchApplicationCommand : CliCommand() {
             print("Applying patch $currentPatch... ")
             print("($appliedPatches / $totalPatches)")
         }
-        patcher.patch(patches) { index, patch ->
+        patcher.patch(effectivePatches, target = target.id) { index, patch ->
             appliedPatches = index
             currentPatch = patch.name
         }
