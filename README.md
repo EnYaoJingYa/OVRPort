@@ -194,9 +194,10 @@ For ThinkReality VRX, a minimal VrApi smoke APK is maintained under
 submission, and predicted head tracking successfully. VRX/Monado may omit
 OpenXR's optional `TRACKED` location bits while still returning a valid 6DoF
 head pose, and VrApi clients may enumerate controllers immediately after
-entering VR; both lifecycle cases are handled explicitly. Controller
-enumeration from this minimal VrApi probe remains an open diagnostic item even
-though the OpenXR application path exposes two live tracked controllers.
+entering VR; both lifecycle cases are handled explicitly. The probe now
+enumerates both tracked-remote device IDs with left/right, position,
+orientation, trigger and joystick capabilities; pose/state calls return
+`DeviceUnavailable` while a controller is not active.
 
 
 ## Downloads

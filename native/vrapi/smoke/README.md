@@ -20,16 +20,18 @@ Current VRX result:
 - `vrapi_EnterVrMode` returns a valid `ovrMobile`;
 - head tracking returns a finite orientation and valid 6DoF position;
 - empty frame submission succeeds repeatedly;
-- controller enumeration remains zero while no controller action becomes
-  active. The same VRX session exposes two tracked controller spaces and real
-  button/analog values through the OpenXR application smoke test, so this is
-  still an open VrApi input-activation compatibility item.
+- enumeration returns both tracked-remote device IDs (1 and 2) with left/right,
+  position, orientation, trigger and joystick capabilities;
+- pose/state calls return `DeviceUnavailable` while a controller is not active.
+  Battery and tracking become usable once runtime input is awake.
 
 The adapter was adjusted for VRX in two places during this test:
 
 - initial recenter accepts poses with position and orientation `VALID`;
 - `vrapi_EnterVrMode` synchronizes input before returning to clients that
-  enumerate controllers immediately.
+  enumerate controllers immediately;
+- controller presence is determined from the current OpenXR interaction
+  profile, independently of temporary pose activity.
 
 ## Build
 

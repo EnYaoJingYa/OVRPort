@@ -21,7 +21,8 @@
  X(xrEnumerateSwapchainImages) X(xrAcquireSwapchainImage) X(xrWaitSwapchainImage) X(xrReleaseSwapchainImage) \
  X(xrStringToPath) X(xrCreateActionSet) X(xrDestroyActionSet) X(xrCreateAction) \
  X(xrSuggestInteractionProfileBindings) X(xrAttachSessionActionSets) X(xrCreateActionSpace) \
- X(xrSyncActions) X(xrGetActionStateBoolean) X(xrGetActionStateFloat) X(xrGetActionStateVector2f) \
+ X(xrGetCurrentInteractionProfile) X(xrSyncActions) X(xrGetActionStateBoolean) \
+ X(xrGetActionStateFloat) X(xrGetActionStateVector2f) \
  X(xrGetActionStatePose) X(xrApplyHapticFeedback) X(xrStopHapticFeedback)
 namespace ovp {
 struct XrApi {

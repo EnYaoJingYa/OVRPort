@@ -37,6 +37,7 @@ struct Actions {
 
 struct Hand {
     XrSpace gripSpace = XR_NULL_HANDLE;
+    bool present = false;
     bool active = false;
     float requestedHaptic = 0.0f;
     ovrInputStateTrackedRemote state{};
@@ -406,7 +407,12 @@ void sync() {
     g.lastSyncSeconds = secondsNow();
     for (size_t hand = 0; hand < HandCount; ++hand) {
         const float requestedHaptic = g.hands[hand].requestedHaptic;
+        XrInteractionProfileState profile{XR_TYPE_INTERACTION_PROFILE_STATE};
+        const bool connected =
+            XR_SUCCEEDED(s.xr.xrGetCurrentInteractionProfile(s.session, g.handPaths[hand], &profile)) &&
+            profile.interactionProfile != XR_NULL_PATH;
         clearHandState(hand);
+        g.hands[hand].present = connected;
         g.hands[hand].requestedHaptic = requestedHaptic;
         g.hands[hand].active = getPoseActive(hand);
         if (!g.hands[hand].active) {
@@ -434,7 +440,7 @@ VRAPI ovrResult vrapi_EnumerateInputDevices(ovrMobile* mobile, uint32_t index,
     if (!ovp::validMobile(mobile) || !ovp::input::ready()) return NotInitialized;
     uint32_t connectedIndex = 0;
     for (size_t hand = 0; hand < ovp::input::HandCount; ++hand) {
-        if (!ovp::input::g.hands[hand].active) continue;
+        if (!ovp::input::g.hands[hand].present) continue;
         if (connectedIndex++ == index) {
             capsHeader->Type = ovrControllerType_TrackedRemote;
             capsHeader->DeviceID = ovp::input::DeviceIds[hand];
@@ -454,7 +460,7 @@ VRAPI ovrResult vrapi_GetInputDeviceCapabilities(ovrMobile* mobile,
     size_t hand = 0;
     ovp::input::Hand* value = ovp::input::handForId(capsHeader->DeviceID, &hand);
     if (value == nullptr) return NoDevice;
-    if (!value->active) return DeviceUnavailable;
+    if (!value->present) return DeviceUnavailable;
 
     const ovrDeviceID id = capsHeader->DeviceID;
     auto* caps = reinterpret_cast<ovrInputTrackedRemoteCapabilities*>(capsHeader);
@@ -482,6 +488,7 @@ VRAPI ovrResult vrapi_GetCurrentInputState(ovrMobile* mobile, ovrDeviceID device
     ovp::input::Hand* hand = ovp::input::handForId(deviceID);
     if (hand == nullptr) return NoDevice;
     auto* state = reinterpret_cast<ovrInputStateTrackedRemote*>(inputState);
+    if (!hand->present) return DeviceUnavailable;
     if (!hand->active) {
         *state = {};
         state->Header.ControllerType = ovrControllerType_TrackedRemote;
@@ -504,6 +511,7 @@ VRAPI ovrResult vrapi_GetInputTrackingState(ovrMobile* mobile, ovrDeviceID devic
     size_t handIndex = 0;
     ovp::input::Hand* hand = ovp::input::handForId(deviceID, &handIndex);
     if (hand == nullptr) return NoDevice;
+    if (!hand->present) return DeviceUnavailable;
     if (!hand->active) return DeviceUnavailable;
     const double requestedSeconds = absTimeInSeconds == 0.0 ? ovp::secondsNow() : absTimeInSeconds;
     const XrTime requestedTime = ovp::toXrTime(requestedSeconds);
@@ -522,6 +530,7 @@ VRAPI ovrResult vrapi_SetHapticVibrationSimple(ovrMobile* mobile, ovrDeviceID de
     size_t handIndex = 0;
     ovp::input::Hand* hand = ovp::input::handForId(deviceID, &handIndex);
     if (hand == nullptr) return NoDevice;
+    if (!hand->present) return DeviceUnavailable;
     if (!hand->active) return DeviceUnavailable;
 
     const float amplitude = std::clamp(intensity, 0.0f, 1.0f);
