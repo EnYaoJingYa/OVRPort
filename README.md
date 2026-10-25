@@ -188,6 +188,16 @@ OpenXR loader already handled by OVRPort's existing library packaging. This
 repository does not redistribute Meta's proprietary VrApi library or SDK.
 Users must supply applications they are legally entitled to use.
 
+For ThinkReality VRX, a minimal VrApi smoke APK is maintained under
+[`native/vrapi/smoke`](native/vrapi/smoke/). On VRX it reaches
+`vrapi_Initialize`, Vulkan system registration, `vrapi_EnterVrMode`, empty-frame
+submission, and predicted head tracking successfully. VRX/Monado may omit
+OpenXR's optional `TRACKED` location bits while still returning a valid 6DoF
+head pose, and VrApi clients may enumerate controllers immediately after
+entering VR; both lifecycle cases are handled explicitly. Controller
+enumeration from this minimal VrApi probe remains an open diagnostic item even
+though the OpenXR application path exposes two live tracked controllers.
+
 
 ## Downloads
 

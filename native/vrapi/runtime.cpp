@@ -246,9 +246,10 @@ bool beginFrame(int64_t index) {
         // OpenXR LOCAL need not be eye-level. Establish VrApi's initial yaw/position
         // origin from a tracked, visible head before exposing it to the application.
         XrSpaceLocation head{XR_TYPE_SPACE_LOCATION};
+        // VRX/Monado can report a usable 6DoF pose with VALID set while omitting
+        // the optional TRACKED bits during early session initialization.
         constexpr XrSpaceLocationFlags tracked =
-            XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT |
-            XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT | XR_SPACE_LOCATION_POSITION_TRACKED_BIT;
+            XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT;
         if ((s.sessionState != XR_SESSION_STATE_VISIBLE && s.sessionState != XR_SESSION_STATE_FOCUSED) ||
             !xrOk(s.xr.xrLocateSpace(s.viewSpace, s.localSpace, s.frame.predictedDisplayTime, &head), "initial eye-level origin") ||
             (head.locationFlags & tracked) != tracked) {
@@ -533,6 +534,9 @@ VRAPI ovrMobile* vrapi_EnterVrMode(const ovrModeParms* parms) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
     ++s.mobile.generation;
+    // VrApi clients commonly enumerate controllers immediately after
+    // vrapi_EnterVrMode, before submitting their first rendered frame.
+    input::sync();
     s.inVr = true;
     OVP_LOG("Entered VR mode");
     return &s.mobile;
